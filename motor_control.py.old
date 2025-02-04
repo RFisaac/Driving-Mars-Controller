@@ -1,0 +1,81 @@
+from machine import Pin
+from time import sleep
+
+class MotorController:
+    def __init__(self):
+        # Left motor pins
+        self.pSTEP_L = Pin(2, Pin.OUT)
+        self.pDIR_L = Pin(1, Pin.OUT)
+        self.pEN_L = Pin(0, Pin.OUT)
+        
+        # Right motor pins  
+        self.pSTEP_R = Pin(5, Pin.OUT)
+        self.pDIR_R = Pin(6, Pin.OUT)
+        self.pEN_R = Pin(7, Pin.OUT)
+        
+        # Initialize both enable pins to OFF (motors active)
+        self.pEN_L.off()
+        self.pEN_R.off()
+        
+        # Default settings
+        self.speed = 1000  # Microseconds between steps (lower = faster)
+        self.uS = 0.000001  # one microsecond
+        
+    def set_speed(self, speed):
+        """Set motor speed (500-2000). Lower number = faster speed."""
+        self.speed = max(500, min(2000, speed))
+        
+    def _step_motors(self, left_dir, right_dir, steps, duration=None):
+        """
+        Step both motors with given directions for specified steps or duration.
+        left_dir/right_dir: True for forward, False for backward
+        steps: Number of steps to take
+        duration: If provided, will calculate steps based on duration
+        """
+        # Set directions
+        self.pDIR_L.value(not left_dir)  # Inverted for correct direction
+        self.pDIR_R.value(right_dir)
+        
+        # Enable motors
+        self.pEN_L.off()
+        self.pEN_R.off()
+        
+        # If duration provided, calculate steps
+        if duration:
+            # Calculate steps based on speed and duration
+            # Two delays per step cycle, so divide by 2
+            steps = int((duration * 1000000) / (self.speed * 2))
+        
+        # Step both motors
+        for _ in range(steps):
+            self.pSTEP_L.on()
+            self.pSTEP_R.on()
+            sleep(self.uS * self.speed)
+            self.pSTEP_L.off()
+            self.pSTEP_R.off()
+            sleep(self.uS * self.speed)
+        
+        # Disable motors
+        self.pEN_L.on()
+        self.pEN_R.on()
+    
+    def forward(self, duration=1.0):
+        """Move forward for specified duration in seconds."""
+        self._step_motors(True, True, None, duration)
+        
+    def backward(self, duration=1.0):
+        """Move backward for specified duration in seconds."""
+        self._step_motors(False, False, None, duration)
+        
+    def turn_left(self, duration=1.0):
+        """Turn left for specified duration in seconds."""
+        self._step_motors(False, True, None, duration)
+        
+    def turn_right(self, duration=1.0):
+        """Turn right for specified duration in seconds."""
+        self._step_motors(True, False, None, duration)
+        
+    def stop(self):
+        """Stop both motors."""
+        self.pEN_L.on()
+        self.pEN_R.on()
